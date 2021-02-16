@@ -41,6 +41,7 @@ func main() {
 	flag.StringVar(&outputFilename, "o", "", `output file name, default is stdout, "-" to use temporary file`)
 	flag.BoolVar(&openFile, "open", false, "open the output file")
 	flag.BoolVar(&verbose, "v", false, "verbose")
+	webSocketDebuggerUrl := flag.String("ws", "", "WebSocket debugger URL")
 	flag.Parse()
 
 	if *showDevices {
@@ -107,7 +108,18 @@ func main() {
 	}
 	defer target.Close()
 
-	ctx, cancel := chromedp.NewContext(context.Background())
+	var cancel func()
+	ctx := context.Background()
+
+	if *webSocketDebuggerUrl != "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, "websocket", *webSocketDebuggerUrl)
+		}
+		ctx, cancel = chromedp.NewRemoteAllocator(ctx, *webSocketDebuggerUrl)
+		defer cancel()
+	}
+
+	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 	var buf []byte
 	err := chromedp.Run(
